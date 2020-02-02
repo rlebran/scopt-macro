@@ -21,4 +21,4 @@ lazy val example = project.in(file("example"))
   .dependsOn(macros)
 
 lazy val root = project.in(file("."))
-  .aggregate(example)
+  .aggregate(macros)

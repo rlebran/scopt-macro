@@ -1,6 +1,8 @@
-name := "scopt-generic-parser"
+name in ThisBuild := "scopt-generic-parser"
 
-version := "0.1.0"
+organization in ThisBuild := "com.github.rlebran"
+
+version in ThisBuild := "0.1.0"
 
 scalaVersion in ThisBuild := "2.11.12"
 
@@ -9,7 +11,7 @@ lazy val commonSettings = Seq(
   libraryDependencies += "com.github.scopt" %% "scopt" % "3.3.0"
 )
 
-lazy val macros = project.in(file("macros"))
+lazy val macros = Project("scopt-macros", file("macros"))
   .settings(commonSettings: _*)
   .settings(
     resolvers += Resolver.sonatypeRepo("releases"),

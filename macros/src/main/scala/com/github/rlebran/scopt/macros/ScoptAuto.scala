@@ -10,9 +10,20 @@ object ScoptAuto {
     def macroTransform(annottees: Any*): Any = macro ScoptAutoParsing.impl
   }
 
+
+  @compileTimeOnly("enable macro paradise to expand macro annotations")
+  class autoParserDebug extends StaticAnnotation {
+    def macroTransform(annottees: Any*): Any = macro ScoptAutoParsing.implDebug
+  }
+
   @compileTimeOnly("enable macro paradise to expand macro annotations")
   class configAutoParser(optList: String*) extends StaticAnnotation {
     def macroTransform(annottees: Any*): Any = macro ScoptAutoParsing.impl
+  }
+
+  @compileTimeOnly("enable macro paradise to expand macro annotations")
+  class configAutoParserDebug(optList: String*) extends StaticAnnotation {
+    def macroTransform(annottees: Any*): Any = macro ScoptAutoParsing.implDebug
   }
 
 }

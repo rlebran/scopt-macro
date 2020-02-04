@@ -2,7 +2,7 @@ name in ThisBuild := "scopt-generic-parser"
 
 organization in ThisBuild := "com.github.rlebran"
 
-version in ThisBuild := "0.1.0"
+version in ThisBuild := "0.2.0"
 
 scalaVersion in ThisBuild := "2.11.12"
 

@@ -6,9 +6,27 @@ import scala.reflect.macros.blackbox
 private[macros] object ScoptAutoParsing {
 
   def impl(ctx: blackbox.Context)(annottees: ctx.Expr[Any]*): ctx.Expr[Any] = {
+    ctx.Expr[Any](treeGeneration(ctx)(annottees: _*))
+  }
+
+  def implDebug(ctx: blackbox.Context)(
+      annottees: ctx.Expr[Any]*): ctx.Expr[Any] = {
+    val tree = treeGeneration(ctx)(annottees: _*)
+    println(tree)
+    ctx.Expr[Any](tree)
+  }
+
+  private def treeGeneration(ctx: blackbox.Context)(
+      annottees: ctx.Expr[Any]*): ctx.universe.Tree = {
     import ctx.universe._
 
-    val optList = extractArgs(ctx)
+    val specificParams = extractArgs(ctx).flatMap { paramAndMod =>
+      val splitted = paramAndMod.split(":", 2)
+      for {
+        param <- splitted.headOption
+        mods <- splitted.lastOption
+      } yield param -> mods.split(",").toSet
+    }.toMap
 
     annottees.map(_.tree) match {
       case q"$mods class $name[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" :: Nil =>
@@ -34,12 +52,37 @@ private[macros] object ScoptAutoParsing {
                    .optional
                    .action((x, c) => c.copy($name = x))
                """
-              case _ if optList.contains(name.toString()) =>
-                q"""
-                 opt[$typeOpt]($paramName)
-                   .optional
-                   .action((x, c) => c.copy($name = x))
-               """
+              case _ if specificParams.get(name.toString()).isDefined =>
+                val modifiers =
+                  specificParams(name.toString()).toSeq.sorted.toList
+                modifiers match {
+                  case opt :: unb :: Nil
+                      if (opt == "optional" || opt == "opt") && (unb == "unbounded" || unb == "unb") =>
+                    q"""
+                       opt[$typeOpt]($paramName)
+                         .unbounded
+                         .optional
+                         .action((x, c) => c.copy($name = x))
+                     """
+                  case opt :: Nil if opt == "optional" || opt == "opt" =>
+                    q"""
+                       opt[$typeOpt]($paramName)
+                         .optional
+                         .action((x, c) => c.copy($name = x))
+                     """
+                  case unb :: Nil if unb == "unbounded" || unb == "unb" =>
+                    q"""
+                       opt[$typeOpt]($paramName)
+                         .unbounded
+                         .action((x, c) => c.copy($name = x))
+                     """
+                  case _ =>
+                    q"""
+                       opt[$typeOpt]($paramName)
+                         .optional
+                         .action((x, c) => c.copy($name = x))
+                     """
+                }
               case _ =>
                 q"""
                  opt[$typeOpt]($paramName)
@@ -49,10 +92,10 @@ private[macros] object ScoptAutoParsing {
             }
         }
         val termName = Literal(Constant(name.toString().toLowerCase))
-        val optParser = q"lazy val parser: OptionParser[$name] = new OptionParser[$name]($termName){ ..$opts }"
+        val optParser =
+          q"lazy val parser: OptionParser[$name] = new OptionParser[$name]($termName){ ..$opts }"
 
-        val generatedCode =
-          q"""
+        q"""
            $mods class $name[..$tparams] $ctorMods(...$paramss) extends {
              ..$earlydefns
            } with ..$parents { $self =>
@@ -62,7 +105,6 @@ private[macros] object ScoptAutoParsing {
              def parse(args: Seq[String]): Option[$name] = { parser.parse(args, this) }
            }
          """
-        ctx.Expr[Any](generatedCode)
     }
   }
 
@@ -70,11 +112,13 @@ private[macros] object ScoptAutoParsing {
     import ctx.universe._
 
     ctx.macroApplication match {
-      case Apply(Select(Apply(_, xs: List[_]), _), _) => xs.flatMap { case t: Tree =>
-        t.collect {
-          case Literal(Constant(arg@(_: String))) => arg.toString
+      case Apply(Select(Apply(_, xs: List[_]), _), _) =>
+        xs.flatMap {
+          case t: Tree =>
+            t.collect {
+              case Literal(Constant(arg @ (_: String))) => arg.toString
+            }
         }
-      }
       case _ => Nil
     }
   }
